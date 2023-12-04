@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from skmultilearn.model_selection import iterative_train_test_split
 
 
-def save_coco(file, info, licenses, images, annotations, categories):
+def save_coco(file, images, annotations, categories):
     with open(file, "wt", encoding="UTF-8") as coco:
         json.dump(
             {
@@ -70,8 +70,6 @@ args = parser.parse_args()
 def main(args):
     with open(args.annotations, "rt", encoding="UTF-8") as annotations:
         coco = json.load(annotations)
-        info = coco["info"]
-        licenses = coco["licenses"]
         images = coco["images"]
         annotations = coco["annotations"]
         categories = coco["categories"]
@@ -108,16 +106,12 @@ def main(args):
 
             save_coco(
                 args.train,
-                info,
-                licenses,
                 filter_images(images, X_train.reshape(-1)),
                 X_train.reshape(-1).tolist(),
                 categories,
             )
             save_coco(
                 args.test,
-                info,
-                licenses,
                 filter_images(images, X_test.reshape(-1)),
                 X_test.reshape(-1).tolist(),
                 categories,
@@ -135,8 +129,8 @@ def main(args):
             anns_train = filter_annotations(annotations, X_train)
             anns_test = filter_annotations(annotations, X_test)
 
-            save_coco(args.train, info, licenses, X_train, anns_train, categories)
-            save_coco(args.test, info, licenses, X_test, anns_test, categories)
+            save_coco(args.train, X_train, anns_train, categories)
+            save_coco(args.test, X_test, anns_test, categories)
 
             print(
                 "Saved {} entries in {} and {} in {}".format(
