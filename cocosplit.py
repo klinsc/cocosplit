@@ -11,8 +11,6 @@ def save_coco(file, info, licenses, images, annotations, categories):
     with open(file, "wt", encoding="UTF-8") as coco:
         json.dump(
             {
-                "info": info,
-                "licenses": licenses,
                 "images": images,
                 "annotations": annotations,
                 "categories": categories,
