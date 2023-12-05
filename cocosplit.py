@@ -49,8 +49,8 @@ def parse_args():
     return parser.parse_args()
 
 
-def save_coco(file, images, annotations, categories):
-    with open(file, "wt", encoding="UTF-8") as coco:
+def save_coco(root, file, images, annotations, categories):
+    with open(root + file, "wt", encoding="UTF-8") as coco:
         json.dump(
             {
                 "images": images,
@@ -145,8 +145,11 @@ def main():
     train_images = funcy.lremove(lambda i: int(i["id"]) not in train_image_ids, images)
     test_images = funcy.lremove(lambda i: int(i["id"]) not in test_image_ids, images)
 
-    save_coco(args.train, train_images, train_annotations, categories)
-    save_coco(args.val, test_images, test_annotations, categories)
+    # root is parent directory of annotations file
+    root = os.path.dirname(args.annotations)
+
+    save_coco(root, args.train, train_images, train_annotations, categories)
+    save_coco(root, args.val, test_images, test_annotations, categories)
 
 
 if __name__ == "__main__":
