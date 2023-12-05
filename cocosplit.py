@@ -50,7 +50,7 @@ def parse_args():
 
 
 def save_coco(root, file, images, annotations, categories):
-    with open(root + file, "wt", encoding="UTF-8") as coco:
+    with open(root + "/" + file, "wt", encoding="UTF-8") as coco:
         json.dump(
             {
                 "images": images,
