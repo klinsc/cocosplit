@@ -11,15 +11,6 @@
       "program": "cocosplit.py",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "args": "--multi-class -s 0.8 datasets/asdr6_2_100/coco_annotations.json train.json val.json"
-    },
-    {
-      "name": "cocosplitV2.py",
-      "type": "python",
-      "request": "launch",
-      "program": "cocosplitV2.py",
-      "console": "integratedTerminal",
-      "justMyCode": true,
       "args": "-s 0.8 datasets/asdr6_2_100/coco_annotations.json train.json val.json"
     },
     {
