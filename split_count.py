@@ -82,15 +82,27 @@ def save_class_distribution(args):
             filter(lambda i: annotation_categories.count(i) > 1, annotation_categories)
         )
 
-        # count classes
+        # count classes & % of total
         class_count = {}
         for i in annotation_categories:
             class_count[i] = class_count.get(i, 0) + 1
 
+        total = len(annotation_categories)
+        class_count_percent = {}
+        for key in class_count.keys():
+            class_count_percent[key] = class_count[key] / total
+
         # save to csv
         with open(args.dir + "/" + "train_class_distribution.csv", "w") as f:
             for key in class_count.keys():
-                f.write("%s,%s\n" % (categories[key]["name"], class_count[key]))
+                f.write(
+                    "%s,%s,%s\n"
+                    % (
+                        categories[key]["name"],
+                        class_count[key],
+                        class_count_percent[key],
+                    )
+                )
 
     with open(args.dir + "/" + args.val, "rt", encoding="UTF-8") as annotations:
         coco = json.load(annotations)
@@ -104,15 +116,27 @@ def save_class_distribution(args):
             filter(lambda i: annotation_categories.count(i) > 1, annotation_categories)
         )
 
-        # count classes
+        # count classes & % of total
         class_count = {}
         for i in annotation_categories:
             class_count[i] = class_count.get(i, 0) + 1
 
+        total = len(annotation_categories)
+        class_count_percent = {}
+        for key in class_count.keys():
+            class_count_percent[key] = class_count[key] / total
+
         # save to csv
         with open(args.dir + "/" + "val_class_distribution.csv", "w") as f:
             for key in class_count.keys():
-                f.write("%s,%s\n" % (categories[key]["name"], class_count[key]))
+                f.write(
+                    "%s,%s,%s\n"
+                    % (
+                        categories[key]["name"],
+                        class_count[key],
+                        class_count_percent[key],
+                    )
+                )
 
     # plot
     with open(args.dir + "/" + "train_class_distribution.csv", "r") as f:
