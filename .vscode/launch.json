@@ -5,6 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "virtualize.py",
+      "type": "python",
+      "request": "launch",
+      "program": "virtualize.py",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "args": "--annotations datasets/asdr6_2_100/coco_annotations.json"
+    },
+    {
       "name": "cocosplit.py",
       "type": "python",
       "request": "launch",
