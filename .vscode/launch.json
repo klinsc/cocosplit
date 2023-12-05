@@ -19,7 +19,8 @@
       "request": "launch",
       "program": "split_count.py",
       "console": "integratedTerminal",
-      "justMyCode": true
+      "justMyCode": true,
+      "args": "--dir datasets/asdr6_2_100"
     }
   ]
 }
