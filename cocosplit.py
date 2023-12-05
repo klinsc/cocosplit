@@ -1,10 +1,52 @@
+# read coco_annotations.json of Coco dataset and split it into train and test sets, using StratifiedShuffleSplit
+# also filter out classes that has only one sample, because it can't be split into the training and testing sets
+
 import argparse
 import json
+import os
 
 import funcy
 import numpy as np
-from sklearn.model_selection import train_test_split
-from skmultilearn.model_selection import iterative_train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Splits COCO annotations file into training and test sets."
+    )
+    parser.add_argument(
+        "annotations",
+        metavar="coco_annotations",
+        type=str,
+        help="Path to COCO annotations file.",
+    )
+    parser.add_argument(
+        "train",
+        type=str,
+        help="Where to store COCO training annotations",
+        default="train.json",
+    )
+    parser.add_argument(
+        "val",
+        type=str,
+        help="Where to store COCO val annotations",
+        default="val.json",
+    )
+    parser.add_argument(
+        "--having-annotations",
+        dest="having_annotations",
+        action="store_true",
+        help="Ignore all images without annotations. Keep only these with at least one annotation",
+    )
+    parser.add_argument(
+        "-s",
+        dest="split",
+        type=float,
+        required=True,
+        help="A percentage of a split; a number in (0, 1)",
+    )
+
+    return parser.parse_args()
 
 
 def save_coco(file, images, annotations, categories):
@@ -32,112 +74,80 @@ def filter_images(images, annotations):
     return funcy.lfilter(lambda a: int(a["id"]) in annotation_ids, images)
 
 
-parser = argparse.ArgumentParser(
-    description="Splits COCO annotations file into training and test sets."
-)
-parser.add_argument(
-    "annotations",
-    metavar="coco_annotations",
-    type=str,
-    help="Path to COCO annotations file.",
-)
-parser.add_argument("train", type=str, help="Where to store COCO training annotations")
-parser.add_argument("test", type=str, help="Where to store COCO test annotations")
-parser.add_argument(
-    "-s",
-    dest="split",
-    type=float,
-    required=True,
-    help="A percentage of a split; a number in (0, 1)",
-)
-parser.add_argument(
-    "--having-annotations",
-    dest="having_annotations",
-    action="store_true",
-    help="Ignore all images without annotations. Keep only these with at least one annotation",
-)
+def filter_one_sample_classes(annotations, categories):
+    """
+    Filter out classes that has only one sample, because it can't be split into the training and testing sets
+    """
+    category_ids = funcy.lmap(lambda c: int(c["id"]), categories)
+    annotations_per_category = {id: [] for id in category_ids}
 
-parser.add_argument(
-    "--multi-class",
-    dest="multi_class",
-    action="store_true",
-    help="Split a multi-class dataset while preserving class distributions in train and test sets",
-)
+    for annotation in annotations:
+        annotations_per_category[int(annotation["category_id"])].append(annotation)
 
-args = parser.parse_args()
+    annotations_per_category = {
+        id: annotations
+        for id, annotations in annotations_per_category.items()
+        if len(annotations) > 1
+    }
+
+    category_ids = list(annotations_per_category.keys())
+    annotations = funcy.lfilter(
+        lambda a: int(a["category_id"]) in category_ids, annotations
+    )
+    categories = funcy.lfilter(lambda c: int(c["id"]) in category_ids, categories)
+
+    return annotations, categories
 
 
-def main(args):
+def main():
+    args = parse_args()
+
     with open(args.annotations, "rt", encoding="UTF-8") as annotations:
         coco = json.load(annotations)
-        images = coco["images"]
-        annotations = coco["annotations"]
-        categories = coco["categories"]
 
-        number_of_images = len(images)
+    images = coco["images"]
+    annotations = coco["annotations"]
+    categories = coco["categories"]
 
-        images_with_annotations = funcy.lmap(lambda a: int(a["image_id"]), annotations)
+    if args.having_annotations:
+        annotations = filter_annotations(annotations, images)
+        images = filter_images(images, annotations)
 
-        if args.having_annotations:
-            images = funcy.lremove(
-                lambda i: i["id"] not in images_with_annotations, images
-            )
+    image_ids = funcy.lmap(lambda i: int(i["id"]), images)
+    category_ids = funcy.lmap(lambda c: int(c["id"]), categories)
 
-        if args.multi_class:
-            annotation_categories = funcy.lmap(
-                lambda a: int(a["category_id"]), annotations
-            )
+    annotations_per_category = {id: [] for id in category_ids}
+    for annotation in annotations:
+        annotations_per_category[int(annotation["category_id"])].append(annotation)
 
-            # bottle neck 1
-            # remove classes that has only one sample, because it can't be split into the training and testing sets
-            annotation_categories = funcy.lremove(
-                lambda i: annotation_categories.count(i) <= 1, annotation_categories
-            )
+    train_annotations = []
+    test_annotations = []
 
-            annotations = funcy.lremove(
-                lambda i: i["category_id"] not in annotation_categories, annotations
-            )
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=args.split, random_state=0)
+    for category_id, annotations in annotations_per_category.items():
+        train_index, test_index = next(
+            sss.split(np.zeros(len(annotations)), np.zeros(len(annotations)))
+        )
 
-            X_train, y_train, X_test, y_test = iterative_train_test_split(
-                np.array([annotations]).T,
-                np.array([annotation_categories]).T,
-                test_size=1 - args.split,
-            )
+        for index in train_index:
+            train_annotations.append(annotations[index])
 
-            save_coco(
-                args.train,
-                filter_images(images, X_train.reshape(-1)),
-                X_train.reshape(-1).tolist(),
-                categories,
-            )
-            save_coco(
-                args.test,
-                filter_images(images, X_test.reshape(-1)),
-                X_test.reshape(-1).tolist(),
-                categories,
-            )
+        for index in test_index:
+            test_annotations.append(annotations[index])
 
-            print(
-                "Saved {} entries in {} and {} in {}".format(
-                    len(X_train), args.train, len(X_test), args.test
-                )
-            )
+    train_image_ids = list(
+        set(funcy.lmap(lambda a: int(a["image_id"]), train_annotations))
+    )
+    test_image_ids = list(
+        set(funcy.lmap(lambda a: int(a["image_id"]), test_annotations))
+    )
 
-        else:
-            X_train, X_test = train_test_split(images, train_size=args.split)
+    train_images = funcy.lremove(lambda i: int(i["id"]) not in train_image_ids, images)
+    test_images = funcy.lremove(lambda i: int(i["id"]) not in test_image_ids, images)
 
-            anns_train = filter_annotations(annotations, X_train)
-            anns_test = filter_annotations(annotations, X_test)
-
-            save_coco(args.train, X_train, anns_train, categories)
-            save_coco(args.test, X_test, anns_test, categories)
-
-            print(
-                "Saved {} entries in {} and {} in {}".format(
-                    len(anns_train), args.train, len(anns_test), args.test
-                )
-            )
+    save_coco(args.train, train_images, train_annotations, categories)
+    save_coco(args.val, test_images, test_annotations, categories)
 
 
 if __name__ == "__main__":
-    main(args)
+    main()
